@@ -1,0 +1,5 @@
+# GitHub Pages serves only the game at the root
+exclude:
+  - docs
+  - tools
+  - CLAUDE.md
