@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Robber Rumble</title>
+<title>劫匪大乱斗 · 低视角测试</title>
 
 <script>
 // Poki SDK：尽早初始化。init 失败（广告拦截等）也照常开始游戏。不在 Poki 上时返回 null。
@@ -178,6 +178,33 @@ window.__pkInit = (async () => {
     #results,#lobby{display:flex;flex-direction:column}#resList,#lobbyList{order:10}
     .panel table{font-size:13px}.win{font-size:16px}
   }
+
+  /* Art pass: toy city, navy panels and warm gold actions. Layout stays responsive. */
+  .panel{background:linear-gradient(150deg,#203b4b,#142733);border:1px solid #60818b;border-radius:20px;box-shadow:0 14px 40px #10202e88,inset 0 1px #bde1e522}
+  .panel h1{color:#ffe19a;font-weight:950;letter-spacing:-.7px;text-shadow:0 3px #0e202d}
+  .panel input,.panel select{background:#102936;color:#edf7f5;border:1px solid #587580;border-radius:10px}
+  .panel button{border-radius:11px;box-shadow:0 3px 0 #0a1d29;font-weight:800}
+  #bSolo{background:linear-gradient(#ffe49b,#ffc94c);color:#253844;box-shadow:0 4px 0 #a87629}
+  #bQuick,#bCreate,#bJoin{background:#345766;color:#edf7f5;border:1px solid #6d929c}
+  #carPrev{background:radial-gradient(ellipse at 50% 65%,#547581,#1b3443);border:1px solid #678b9444}
+  #timer{color:#fff2cb;font-variant-numeric:tabular-nums;text-shadow:0 2px 0 #152b38,0 3px 8px #152b38}
+  #teams,#board,#banner{background:#142d3bea;border:1px solid #75949b66;box-shadow:0 3px 10px #10253233}
+  #board .me{background:#fce2a51a;border-radius:5px}
+  #lvbar{background:#132f3c;border:1px solid #72959466}
+  #lvfill{background:linear-gradient(90deg,#38c68b,#a7e7b6)}
+  .card .ds{color:#d5e4ed}
+  .card{color:#fff7e8;background:linear-gradient(145deg,#284958,#172f3e);border-color:#789ba4;box-shadow:0 5px 0 #102431,0 9px 20px #10243155}
+  .sk{border-color:#f4ebd1;box-shadow:0 4px 0 #142d3b,0 6px 14px #10243155}
+  .sk.ready{box-shadow:0 0 0 2px var(--c),0 4px 0 #142d3b,0 0 12px color-mix(in srgb,var(--c) 40%,transparent)}
+
+  /* Keep the road and player visible while choosing an upgrade in a split window. */
+  @media (min-width:761px) and (min-height:620px) {
+    #cards { top:auto; bottom:116px; }
+    #cardtime { top:auto; bottom:107px; }
+  }
+  #cameraAngle{position:fixed;right:12px;bottom:220px;z-index:31;min-height:44px;min-width:48px;padding:6px 10px;border:1px solid #75949b99;border-radius:10px;background:#142d3bea;color:#fff2cb;font:700 14px system-ui;cursor:pointer;pointer-events:auto}
+  @media (max-width:760px),(max-height:500px){#cameraAngle{right:8px;bottom:151px}}
+  body.lefty #cameraAngle{right:auto;left:12px}
 </style>
 </head>
 <body>
@@ -185,6 +212,7 @@ window.__pkInit = (async () => {
 <canvas id="ov"></canvas>
 
 <div id="hud" class="hidden">
+  <button id="cameraAngle" type="button" title="切换镜头 / Change camera (V)" aria-label="切换镜头 / Change camera">40°</button>
   <div id="timer" class="hud">3:00</div>
   <button id="bMusicHud" class="bMusic" aria-label="Music">♪</button>
   <div id="teams" class="hud"></div>
@@ -213,6 +241,7 @@ window.__pkInit = (async () => {
   <button class="bMusic" aria-label="Music">♪</button>
   <h1 data-t="title"></h1>
   <p class="sub" data-t="tagline"></p>
+  <small style="color:#f7d298">镜头对比测试 · 38° / 44° / 50°</small>
   <input id="name" maxlength="12" data-tp="namePh">
   <div class="pickhd"><b data-t="pickCar"></b>　<span id="carName"></span></div>
   <canvas id="carPrev"></canvas>
@@ -248,6 +277,8 @@ window.__pkInit = (async () => {
 <div id="adblock" class="hidden"></div>
 
 <script type="module">
+import {createHeroCar} from './art/hero-car.js';
+import {createStreetBuildings} from './art/street-buildings.js';
 // 包里有 three.module.min.js 就用包里的（Poki 不允许从外部 CDN 加载），没有就从 CDN 加载（本地测试用）
 const THREE = await import('./three.module.min.js').catch(() => import('https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js'));
 
@@ -259,7 +290,7 @@ const CELL = 36, ROAD = 13, NB = 4, BLOCK = CELL - ROAD, SIZE = NB * CELL + ROAD
 const rc = i => i * CELL + ROAD / 2;
 const TEAM = s => Math.floor(s / 3);
 const TEAM_COLORS = ['#ff4d4d', '#3b9bff', '#2fd36a'], TEAM_LABEL = ['#ff8a8a', '#8cc4ff', '#8ef0a8'];
-const COLORS = ['#ff5a5f', '#ff8f3f', '#ff6fb5', '#2bd9fe', '#4f7dff', '#a66cff', '#3ddc84', '#b6e23a', '#22c9a5'];
+const COLORS = ['#f45b64', '#ff8274', '#c93f55', '#439eff', '#69c3ff', '#376bd4', '#35cb88', '#8ce0a5', '#23a383'];
 const BOT_NAMES = ['Rocky', 'Vex', 'Nova', 'Ziggy', 'Blaze', 'Moxie', 'Dash', 'Ruby', 'Jinx'];
 const MID = NB / 2, BZ = Math.round(NB * 2 / 3);
 const BASES = [[rc(MID), rc(0)], [rc(0), rc(BZ)], [rc(NB), rc(BZ)]];
@@ -323,7 +354,7 @@ const lookOf = c => LOOK[Math.min(MAX_LVL, c.lvl)];
 // 技能：每一级都有看得见的新效果（★ 标的是这一级新增的东西）
 const SKILLS = {
   nitro: { type: 'atk', active: true, color: '#ff8a1c', cd: [5, 4.5, 4], dur: [1.2, 1.6, 2.0] },
-  hook: { type: 'atk', active: true, color: '#ffc21a', cd: [8, 7, 6], range: [24, 32, 36], take: [0.25, 0.35, 0.4] },
+  snatch: { type: 'atk', active: true, color: '#ffb634', cd: [12, 11, 10], range: [14, 17, 20], share: [0.30, 0.35, 0.40] },
   shock: { type: 'atk', active: true, color: '#28c8ff', cd: [9, 8, 7], radius: [16, 21, 26], take: [0.15, 0.25, 0.3] },
   shield: { type: 'def', active: true, color: '#4f7dff', cd: [12, 11, 10], dur: [2.5, 3.5, 4.5] },
   rocket: { type: 'atk', active: true, color: '#b06cff', cd: [8, 7, 6], take: [0.2, 0.25, 0.3], blast: [5, 6, 7], speed: [38, 48, 48], stun: [0.4, 0.4, 0.8] },
@@ -335,7 +366,7 @@ const SKILLS = {
   quick: { type: 'pas', active: false, color: '#8a8fa0' },
   cool: { type: 'pas', active: false, color: '#8a8fa0' },
 };
-const SKILL_KEYS = ['hook', 'shock', 'shield', 'mine', 'rocket', 'magnet', 'speed', 'stable', 'armor', 'quick', 'cool'];
+const SKILL_KEYS = ['snatch', 'shock', 'shield', 'mine', 'rocket', 'magnet', 'speed', 'stable', 'armor', 'quick', 'cool'];
 const PASSIVES = ['magnet', 'speed', 'stable', 'armor', 'quick', 'cool'];
 const ALL_SK = ['nitro', ...SKILL_KEYS];
 const MAX_ACTIVE = 3, MAX_SKILLS = 6;
@@ -596,6 +627,17 @@ function shockWave(c, R, take, stun, lv, wave) {
   }
   event({ k: 'fx', f: 'shock', s: c.slot, x: c.x, z: c.z, r: R, lv, w: wave });
 }
+function snatchTarget(c, radius) {
+  let best = null, bestDist = Infinity;
+  for (const o of enemies(c)) {
+    if (!canLose(o)) continue;
+    const d = hyp(o.x - c.x, o.z - c.z);
+    if (d <= radius && (!best || o.bags > best.bags || (o.bags === best.bags && d < bestDist))) {
+      best = o; bestDist = d;
+    }
+  }
+  return best;
+}
 function useSkill(c, k) {
   const lv = c.skills[k];
   if (!lv || !SKILLS[k] || !SKILLS[k].active || (c.cd[k] || 0) > 0 || c.stunT > 0) return false;
@@ -604,25 +646,15 @@ function useSkill(c, k) {
   if (k === 'nitro') {
     c.boostT = lvv(S.dur, lv);
     event({ k: 'nitro', s: c.slot, x: c.x, z: c.z, lv });
-  } else if (k === 'hook') {
-    const R = lvv(S.range, lv), cands = [];
-    for (const o of enemies(c)) {
-      const dx = o.x - c.x, dz = o.z - c.z, along = dx * fx + dz * fz;
-      if (along <= 0 || along > R) continue;
-      const perp = Math.abs(-dx * fz + dz * fx);
-      if (perp < (lv >= 3 ? 7 : 4.5)) cands.push([along, o]);
-    }
-    cands.sort((a, b) => a[0] - b[0]);
-    const tg = cands.slice(0, lv >= 3 ? 2 : 1).map(x => x[1]);
-    tg.forEach((o, i) => {
-      const side = tg.length > 1 ? (i ? 1 : -1) * 2.2 : 0;
-      startPull(o, c.x + fx * 5.5 - fz * side, c.z + fz * 5.5 + fx * side, 0.5, lvv(S.take, lv), c);
-      event({ k: 'fx', f: 'hook', s: c.slot, x: c.x, z: c.z, x2: o.x, z2: o.z, hit: o.slot, lv, dup: i ? 1 : 0 });
-    });
-    if (!tg.length) {
-      event({ k: 'fx', f: 'hook', s: c.slot, x: c.x, z: c.z, x2: c.x + fx * R, z2: c.z + fz * R, hit: -1, lv });
-      if (lv >= 3) for (const a of [-0.25, 0.25]) event({ k: 'fx', f: 'hook', s: c.slot, x: c.x, z: c.z, x2: c.x + Math.cos(c.h + a) * R, z2: c.z + Math.sin(c.h + a) * R, hit: -1, lv, dup: 1 });
-    }
+  } else if (k === 'snatch') {
+    const victim = snatchTarget(c, lvv(S.range, lv));
+    if (!victim) return false;
+    const n = Math.min(victim.bags, takeShare(victim, lvv(S.share, lv), 1));
+    victim.bags -= n;
+    victim.immT = 2;
+    victim.depT = 0;
+    gain(c, n);
+    event({ k: 'snatch', s: c.slot, v: victim.slot, x: c.x, z: c.z, x2: victim.x, z2: victim.z, lv, n });
   } else if (k === 'shock') {
     shockWave(c, lvv(S.radius, lv), lvv(S.take, lv), lv >= 2 ? 0.8 : 0.4, lv, 1);
     if (lv >= 3) G.later.push({ t: G.time + 0.45, fn: () => shockWave(c, lvv(S.radius, lv), lvv(S.take, lv), 0.8, lv, 2) });
@@ -667,6 +699,9 @@ function genOffer(c) {
   let pool = activeOwned < MAX_ACTIVE ? newActive : [...ups, ...news];
   pool = shuffle(pool.slice());
   const cards = pool.slice(0, 3);
+  if (!G.online && !c.bot && c.lvl === 2 && new URLSearchParams(location.search).get('skill') === 'snatch') {
+    if (!cards.some(card => card.id === 'snatch')) cards[0] = { id: 'snatch', lv: 1 };
+  }
   if (!cards.length) cards.push({ id: 'cash' });
   return cards;
 }
@@ -684,7 +719,7 @@ function applyCard(c, i) {
 
 function botPickCard(c) {
   if (!c.offer) return 0;
-  const order = c.ai.pref || (c.ai.pref = shuffle(['hook', 'shock', 'shield', 'mine', 'rocket']).concat(shuffle(['magnet', 'armor', 'quick', 'cool', 'stable', 'speed']), ['nitro', 'cash']));
+  const order = c.ai.pref || (c.ai.pref = shuffle(['snatch', 'shock', 'shield', 'mine', 'rocket']).concat(shuffle(['magnet', 'armor', 'quick', 'cool', 'stable', 'speed']), ['nitro', 'cash']));
   let bi = 0, bs = 1e9;
   c.offer.forEach((cd, i) => { const r = order.indexOf(cd.id); if (r < bs) { bs = r; bi = i; } });
   return bi;
@@ -697,7 +732,7 @@ function botSkills(c) {
     if ((c.cd[k] || 0) > 0 || k === 'nitro') continue;
     const lv = c.skills[k], S = SKILLS[k];
     let go = false;
-    if (k === 'hook') go = en.some(o => { const dx = o.x - c.x, dz = o.z - c.z, al = dx * fx + dz * fz; return o.bags >= 6 && al > 4 && al < lvv(S.range, lv) && Math.abs(-dx * fz + dz * fx) < (lv >= 3 ? 6 : 4); });
+    if (k === 'snatch') go = en.some(o => canLose(o) && o.bags >= 5 && near(o, lvv(S.range, lv)));
     else if (k === 'shock') go = en.some(o => o.bags >= 4 && canLose(o) && near(o, lvv(S.radius, lv) - 1));
     else if (k === 'shield') go = c.bags >= 10 && en.some(o => near(o, 9));
     else if (k === 'rocket') go = en.some(o => { const dx = o.x - c.x, dz = o.z - c.z, d = hyp(dx, dz); return o.bags >= 5 && canLose(o) && d < 45 && (dx * fx + dz * fz) / (d || 1) > 0.5; });
@@ -995,7 +1030,7 @@ const TL = {
   car4: ['Bean Bug', 'Haricot', 'Fagiolino', 'Böhnchen', 'Frijolito', 'Fasulye', '豆豆甲壳虫', 'まめっこ', '콩벌레', 'Feijão', 'Жучок'],
   car4d: ['Round and adorable', 'Tout rond, tout mignon', 'Tondo e carino', 'Rund und niedlich', 'Redondito y adorable', 'Yuvarlak ve sevimli', '圆滚滚的小可爱', 'まるくてかわいい', '동글동글 귀여워', 'Redondinho e fofo', 'Круглый и милый'],
   'sk.nitro': ['Nitro', 'Nitro', 'Nitro', 'Nitro', 'Nitro', 'Nitro', '氮气', 'ニトロ', '니트로', 'Nitro', 'Нитро'],
-  'sk.hook': ['Grapple', 'Grappin', 'Rampino', 'Haken', 'Gancho', 'Kanca', '钩爪', 'フック', '갈고리', 'Gancho', 'Крюк'],
+  'sk.snatch': ["Drive-by Heist", "Vol au passage", "Scippo al volo", "Vorbeiraub", "Robo al paso", "Kapkaç", "飞车夺金", "すれ違い強奪", "질주 강탈", "Roubo de passagem", "Налёт на ходу"],
   'sk.shock': ['Shockwave', 'Secousse', 'Onda d\'urto', 'Schockwelle', 'Sacudida', 'Şok dalgası', '震荡波', '衝撃波', '충격파', 'Impacto', 'Волна'],
   'sk.shield': ['Shield', 'Bouclier', 'Scudo', 'Schild', 'Escudo', 'Kalkan', '护盾', 'シールド', '보호막', 'Escudo', 'Щит'],
   'sk.rally': ['Rally Horn', 'Clairon', 'Tromba', 'Fanfare', 'Corneta', 'Borazan', '冲锋号', '突撃ラッパ', '돌격 나팔', 'Corneta', 'Горн'],
@@ -1006,9 +1041,9 @@ const TL = {
   'sk.nitro.1': ['Unlocked from the start: 2× speed dash for 1.2 s', 'Dès le départ : sprint à vitesse ×2 pendant 1,2 s', 'Già sbloccato: scatto a velocità ×2 per 1,2 s', 'Von Anfang an: Sprint mit doppeltem Tempo für 1,2 s', 'Desde el inicio: acelerón a velocidad ×2 durante 1,2 s', 'Baştan açık: 1,2 sn boyunca 2 kat hızla atılma', '开局自带：2 倍速度冲刺 1.2 秒', '最初から使える：1.2秒間 2倍速ダッシュ', '처음부터 사용 가능: 1.2초 동안 2배 속도 돌진', 'Liberado desde o início: arrancada com velocidade 2× por 1,2 s', 'Есть с самого начала: рывок на скорости ×2 на 1,2 с'],
   'sk.nitro.2': ['★ 1.6 s dash with a trail of fire', '★ Sprint de 1,6 s avec une traînée de feu', '★ Scatto di 1,6 s con una scia di fuoco', '★ 1,6 s Sprint mit Feuerspur', '★ Acelerón de 1,6 s con estela de fuego', '★ 1,6 sn atılma, arkasında ateş izi', '★ 冲刺 1.6 秒，车后拖出一路火焰', '★ 1.6秒ダッシュ、うしろに炎の帯', '★ 1.6초 돌진, 뒤로 불꽃 자국', '★ Arrancada de 1,6 s com rastro de fogo', '★ Рывок 1,6 с с огненным следом'],
   'sk.nitro.3': ['★ Blue flame: 2.3× speed for 2 s; rams during it knock off 15% more', '★ Flamme bleue : vitesse ×2,3 pendant 2 s ; tes percussions font tomber 15 % de plus', '★ Fiamma blu: velocità ×2,3 per 2 s; gli speronamenti fanno cadere il 15% in più', '★ Blaue Flamme: 2,3-faches Tempo für 2 s; Rammen haut 15 % mehr runter', '★ Llama azul: velocidad ×2,3 durante 2 s; tus embestidas tiran un 15 % más', '★ Mavi alev: 2 sn boyunca 2,3 kat hız; bu sırada çarpmalar %15 fazla düşürür', '★ 蓝色火焰：2.3 倍速度 2 秒，冲刺中撞人多撞掉 15% 的钱', '★ 青い炎：2秒間 2.3倍速、その間の体当たりは15%多く落とす', '★ 푸른 불꽃: 2초 동안 2.3배 속도, 이때 들이받으면 15% 더 떨어뜨림', '★ Chama azul: velocidade 2,3× por 2 s; batidas nesse tempo derrubam 15% a mais', '★ Синее пламя: скорость ×2,3 на 2 с; тараны в это время сбивают на 15% больше'],
-  'sk.hook.1': ['Fire a hook at the enemy ahead, yank them to your bumper and grab 25% of their cash', 'Lance un grappin sur l\'ennemi devant toi, tire-le jusqu\'à ton pare-chocs et prends 25 % de son argent', 'Lancia un rampino al nemico davanti, trascinalo al tuo muso e prendi il 25% dei suoi soldi', 'Schieß einen Haken auf den Gegner vor dir, zieh ihn an deine Front und schnapp dir 25 % seines Geldes', 'Lanza un gancho al enemigo de delante, arrástralo hasta tu frontal y quítale un 25 % de su dinero', 'Öndeki düşmana kanca at, onu önüne çek ve parasının %25\'ini kap', '甩出钩爪，把正前方敌人拽到你车头前，扯掉他 25% 的钱', '前の敵にフックを撃ち、車の前まで引き寄せてお金を25%うばう', '앞에 있는 적에게 갈고리를 던져 내 앞으로 끌어오고 돈의 25%를 빼앗음', 'Lance um gancho no inimigo à frente, puxe-o até o seu para-choque e pegue 25% da grana dele', 'Метни крюк во врага впереди, подтяни его к бамперу и забери 25% его денег'],
-  'sk.hook.2': ['★ Thicker cable: 32 m range, grabs 35%', '★ Câble renforcé : portée 32 m, prend 35 %', '★ Cavo più spesso: gittata 32 m, prende il 35%', '★ Dickeres Seil: 32 m Reichweite, nimmt 35 %', '★ Cable más grueso: alcance 32 m, quita un 35 %', '★ Kalın halat: 32 m menzil, %35 kapar', '★ 加粗钩索：射程 32 米，扯掉 35%', '★ 太いワイヤー：射程32m、35%うばう', '★ 굵은 줄: 사거리 32m, 35% 빼앗음', '★ Cabo reforçado: alcance de 32 m, pega 35%', '★ Толстый трос: дальность 32 м, забирает 35%'],
-  'sk.hook.3': ['★ Double hook: snags two cars ahead, 40% from each', '★ Double grappin : accroche deux voitures, 40 % chacune', '★ Doppio rampino: aggancia due auto davanti, 40% ciascuna', '★ Doppelhaken: erwischt zwei Autos, je 40 %', '★ Doble gancho: atrapa dos coches, un 40 % a cada uno', '★ Çift kanca: öndeki iki arabayı yakalar, her birinden %40', '★ 双钩爪：同时钩住前方两辆车，各扯掉 40%', '★ ダブルフック：前の2台を同時に引っかけ、それぞれ40%', '★ 이중 갈고리: 앞의 두 대를 동시에 걸어 각각 40%', '★ Gancho duplo: fisga dois carros, 40% de cada', '★ Двойной крюк: цепляет две машины, по 40% с каждой'],
+  'sk.snatch.1': ["Steal 30% from the richest exposed rival within 14 m", "Vole 30 % au rival vulnérable le plus riche à 14 m", "Ruba il 30% al rivale vulnerabile più ricco entro 14 m", "Raube dem reichsten ungeschützten Gegner in 14 m 30 %", "Roba el 30 % al rival vulnerable más rico a 14 m", "14 m içindeki en zengin savunmasız rakibin parasının %30 kadarını kap", "瞬间抢走 14 米内载钱最多的可攻击敌车 30% 的钱，直接上车顶", "14 m以内で最も現金が多い無防備な敵から30%奪う", "14 m 안에서 가장 부유한 무방비 적의 돈 30% 강탈", "Roube 30% do rival vulnerável mais rico a 14 m", "Забери 30% у самого богатого уязвимого врага в радиусе 14 м"],
+  'sk.snatch.2': ["Steal 35% from the richest exposed rival within 17 m", "Vole 35 % au rival vulnérable le plus riche à 17 m", "Ruba il 35% al rivale vulnerabile più ricco entro 17 m", "Raube dem reichsten ungeschützten Gegner in 17 m 35 %", "Roba el 35 % al rival vulnerable más rico a 17 m", "17 m içindeki en zengin savunmasız rakibin parasının %35 kadarını kap", "瞬间抢走 17 米内载钱最多的可攻击敌车 35% 的钱，直接上车顶", "17 m以内で最も現金が多い無防備な敵から35%奪う", "17 m 안에서 가장 부유한 무방비 적의 돈 35% 강탈", "Roube 35% do rival vulnerável mais rico a 17 m", "Забери 35% у самого богатого уязвимого врага в радиусе 17 м"],
+  'sk.snatch.3': ["Steal 40% from the richest exposed rival within 20 m", "Vole 40 % au rival vulnérable le plus riche à 20 m", "Ruba il 40% al rivale vulnerabile più ricco entro 20 m", "Raube dem reichsten ungeschützten Gegner in 20 m 40 %", "Roba el 40 % al rival vulnerable más rico a 20 m", "20 m içindeki en zengin savunmasız rakibin parasının %40 kadarını kap", "瞬间抢走 20 米内载钱最多的可攻击敌车 40% 的钱，直接上车顶", "20 m以内で最も現金が多い無防備な敵から40%奪う", "20 m 안에서 가장 부유한 무방비 적의 돈 40% 강탈", "Roube 40% do rival vulnerável mais rico a 20 m", "Забери 40% у самого богатого уязвимого врага в радиусе 20 м"],
   'sk.shock.1': ['Blast all enemies within 16 m; each drops 15% of their cash', 'Repousse tous les ennemis à 16 m ; chacun perd 15 % de son argent', 'Respinge tutti i nemici entro 16 m; ognuno perde il 15% dei soldi', 'Schleudert alle Gegner im Umkreis von 16 m weg; jeder verliert 15 % seines Geldes', 'Lanza por los aires a los enemigos a 16 m; cada uno pierde un 15 % de su dinero', '16 m içindeki tüm düşmanları savurur; her biri parasının %15\'ini düşürür', '震飞身边 16 米内所有敌人，每人掉 15% 的钱', '16m以内の敵をふきとばし、それぞれ15%のお金を落とさせる', '16m 안의 모든 적을 날려 각자 돈의 15%를 떨어뜨림', 'Lança longe todos os inimigos a 16 m; cada um perde 15% da grana', 'Отбрасывает всех врагов в радиусе 16 м; каждый теряет 15% денег'],
   'sk.shock.2': ['★ 21 m range; hit enemies are stunned 0.8 s and drop 25%', '★ Portée 21 m ; les ennemis touchés sont étourdis 0,8 s et perdent 25 %', '★ Raggio 21 m; i nemici colpiti restano storditi 0,8 s e perdono il 25%', '★ 21 m Radius; Getroffene sind 0,8 s betäubt und verlieren 25 %', '★ Alcance 21 m; los enemigos alcanzados quedan aturdidos 0,8 s y pierden un 25 %', '★ 21 m menzil; vurulan düşmanlar 0,8 sn sersemler ve %25 düşürür', '★ 范围 21 米，被震到的敌人晕眩 0.8 秒，掉 25%', '★ 範囲21m、当たった敵は0.8秒スタンして25%落とす', '★ 범위 21m, 맞은 적은 0.8초 기절하고 25% 떨어뜨림', '★ Alcance de 21 m; inimigos atingidos ficam atordoados 0,8 s e perdem 25%', '★ Радиус 21 м; задетые враги оглушены на 0,8 с и теряют 25%'],
   'sk.shock.3': ['★ Double blast: a second 26 m wave follows; 30% per wave', '★ Double onde : une 2e vague de 26 m suit ; 30 % par vague', '★ Doppia onda: segue una seconda onda di 26 m; 30% per onda', '★ Doppelschlag: eine zweite 26-m-Welle folgt; 30 % pro Welle', '★ Doble onda: le sigue una segunda de 26 m; un 30 % por onda', '★ Çift dalga: ardından 26 m\'lik ikinci dalga; dalga başına %30', '★ 双重冲击：紧接着再炸一圈，范围 26 米，每圈掉 30%', '★ ダブルインパクト：続けて26mの2発目、1発ごとに30%', '★ 이중 충격: 바로 26m 두 번째 파동, 파동마다 30%', '★ Onda dupla: segue uma segunda onda de 26 m; 30% por onda', '★ Двойной удар: следом вторая волна на 26 м; 30% за каждую'],
@@ -1472,13 +1507,41 @@ const canvas = document.getElementById('c');
 const ovc = document.getElementById('ov'), ov = ovc.getContext('2d');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
 const scene = new THREE.Scene();
-scene.background = new THREE.Color('#9cc7e8');
-const cam = new THREE.OrthographicCamera(-50, 50, 50, -50, 1, 1500);
-const CAM_PITCH = 56 * Math.PI / 180, CAM_DIST = 400;
-function viewH() { return innerWidth < innerHeight ? 105 : 80; }
-scene.add(new THREE.HemisphereLight(0xffffff, 0x556070, 1.0));
-const sun = new THREE.DirectionalLight(0xffffff, 1.1); sun.position.set(80, 160, 60); scene.add(sun);
+scene.background = new THREE.Color('#bed9dc');
+const cam = new THREE.PerspectiveCamera(30, 1, 1, 330);
+const CAMERA_ANGLES = [38, 40, 50];
+let cameraAngleIndex = 1;
+let cameraPitch = THREE.MathUtils.degToRad(CAMERA_ANGLES[cameraAngleIndex]);
+function cycleCameraAngle() {
+  cameraAngleIndex = (cameraAngleIndex + 1) % CAMERA_ANGLES.length;
+  const degrees = CAMERA_ANGLES[cameraAngleIndex];
+  const button = document.getElementById('cameraAngle');
+  button.textContent = degrees + '°';
+  button.setAttribute('aria-label', '切换镜头 / Change camera (' + degrees + '°)');
+}
+document.getElementById('cameraAngle').addEventListener('click', cycleCameraAngle);
+function cameraDistance() { return innerWidth < innerHeight ? 96 : 78; }
+function placeCamera(x, z, leadZ = 0) {
+  const dist = cameraDistance();
+  // Show more of the street below the player, including near the north garage.
+  const focusZ = z + 7 + Math.max(0, 14 - z) * .48 + leadZ;
+  cam.position.set(x, dist * Math.sin(cameraPitch), focusZ + dist * Math.cos(cameraPitch));
+  cam.lookAt(x, 0, focusZ);
+}
+scene.add(new THREE.HemisphereLight('#dcefff', '#b29674', 1.85));
+const sun = new THREE.DirectionalLight('#fff1d3', 2.65);
+sun.position.set(-18, 38, 26);
+sun.castShadow = true;
+sun.shadow.mapSize.set(1024, 1024);
+Object.assign(sun.shadow.camera, {left: -32, right: 32, top: 34, bottom: -34, near: 1, far: 105});
+sun.shadow.camera.updateProjectionMatrix();
+sun.shadow.bias = -.00025;
+sun.shadow.normalBias = .055;
+scene.add(sun, sun.target);
 const matCache = {};
 const mat = (c, em) => { const k = c + (em || ''); return matCache[k] || (matCache[k] = new THREE.MeshLambertMaterial({ color: c, emissive: em || '#000000' })); };
 function box(w, h, d, color, x, y, z) {
@@ -1486,32 +1549,186 @@ function box(w, h, d, color, x, y, z) {
 }
 const basicMat = (c, op) => new THREE.MeshBasicMaterial({ color: c, transparent: op !== undefined, opacity: op ?? 1, side: THREE.DoubleSide, depthWrite: op === undefined });
 {
-  const grass = new THREE.Mesh(new THREE.PlaneGeometry(SIZE + 500, SIZE + 500), mat('#6a9a55'));
+  const grass = new THREE.Mesh(new THREE.PlaneGeometry(SIZE + 500, SIZE + 500), mat('#779f8c'));
   grass.rotation.x = -Math.PI / 2; grass.position.set(SIZE / 2, -0.06, SIZE / 2); scene.add(grass);
-  const road = new THREE.Mesh(new THREE.PlaneGeometry(SIZE, SIZE), mat('#3d4250'));
+  const road = new THREE.Mesh(new THREE.PlaneGeometry(SIZE, SIZE), mat('#354651'));
+  road.receiveShadow = true;
   road.rotation.x = -Math.PI / 2; road.position.set(SIZE / 2, 0, SIZE / 2); scene.add(road);
   for (let i = 0; i <= NB; i++) {
-    scene.add(box(0.35, 0.02, SIZE, '#6b7180', rc(i), 0.02, SIZE / 2));
-    scene.add(box(SIZE, 0.02, 0.35, '#6b7180', SIZE / 2, 0.02, rc(i)));
+    scene.add(box(0.35, 0.02, SIZE, '#72848c', rc(i), 0.02, SIZE / 2));
+    scene.add(box(SIZE, 0.02, 0.35, '#72848c', SIZE / 2, 0.02, rc(i)));
   }
-  let seed = 7; const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
-  const pal = ['#f4a261', '#e9c46a', '#8ecae6', '#cdb4db', '#ffafcc', '#bde0fe', '#a8dadc', '#f6bd60', '#b8e0a8'];
+
+  // Approved toy-city art direction: bakery / workshop / bank / park neighborhoods.
+  const pal = ['#da9580','#75aaac','#e2caa4','#e5b34e'];
+  const detailBatches = new Map();
+  function detail(w,h,d,color,x,y,z) {
+    if (!detailBatches.has(color)) detailBatches.set(color, []);
+    detailBatches.get(color).push([w,h,d,x,y,z]);
+  }
+  function tree(x,z) {
+    detail(2,.5,2,'#e4d5b8',x,.8,z);
+    detail(.45,2.2,.45,'#8a6547',x,1.7,z);
+    const crown=new THREE.Mesh(new THREE.IcosahedronGeometry(1.7,0),mat('#7fac5f'));
+    crown.position.set(x,3.2,z);scene.add(crown);
+    const tip=new THREE.Mesh(new THREE.IcosahedronGeometry(1.2,0),mat('#a0c86d'));
+    tip.position.set(x-.4,4.0,z-.25);scene.add(tip);
+  }
+  const sampleDistrict = [
+    ['#d79577', 'bakery'], ['#e0c8a0', 'bank'], ['#80a9a8', 'workshop'],
+  ];
+  // The promenade sits past the arena boundary, behind the red garage.
+  // Keep its architecture below the main action and within the local shadow map.
+  detail(103, .25, 23, '#d7c5a9', rc(MID), .12, -14);
+  detail(103, .18, 1.4, '#f2deba', rc(MID), .31, -2.8);
+  const promenade = new THREE.Group();
+  const makePromenadeFront = createStreetBuildings(promenade);
+  makePromenadeFront(-16, '#bd7964', 'bakery');
+  makePromenadeFront(16, '#6a9da5', 'workshop');
+  promenade.position.set(rc(MID), -.35, -5);
+  promenade.scale.set(1.55, 1.1, 1.5);
+  scene.add(promenade);
+  for (const x of [-46, -36, -12, 12, 36, 46]) {
+    tree(rc(MID) + x, -7);
+    detail(3.3, .2, .85, '#9d6d4c', rc(MID) + x, .95, -4.7);
+    for (const leg of [-1, 1]) detail(.22, .7, .72, '#334657', rc(MID) + x + leg, .57, -4.7);
+  }
   for (const b of BLOCKS) {
-    const cx = (b.x0 + b.x1) / 2, cz = (b.z0 + b.z1) / 2;
-    scene.add(box(BLOCK, 0.5, BLOCK, '#a3a8b3', cx, 0.25, cz));
-    const h = 1.6 + rnd() * 1.6;
-    scene.add(box(BLOCK - 5, h, BLOCK - 5, pal[Math.floor(rnd() * pal.length)], cx, h / 2 + 0.5, cz));
+    const cx=(b.x0+b.x1)/2,cz=(b.z0+b.z1)/2,kind=(b.i+2*b.j)%5;
+    detail(BLOCK+.3,.04,BLOCK+.3,'#263c48',cx,.02,cz);
+    detail(BLOCK,.55,BLOCK,'#c8c8b4',cx,.3,cz);
+    // Tiled sidewalk edge, drawn as batches rather than individual draw calls.
+    for(let k=-10;k<=10;k+=2.5)for(const side of [-1,1]) {
+      detail(2.35,.12,1.6,'#e3d8bd',cx+k,.62,cz+side*10.6);
+      detail(1.6,.12,2.35,'#e3d8bd',cx+side*10.6,.62,cz+k);
+    }
+    for(const side of [-1,1])for(let k=0;k<4;k++)
+      detail(.7,.025,3,'#e3d8bd',b.x0-2.9-k*1.1,.045,cz+side*(BLOCK/2-2));
+    if (b.j === 0 && b.i >= 1) {
+      const frontage = new THREE.Group();
+      const buildFacade = createStreetBuildings(frontage);
+      buildFacade(0, ...sampleDistrict[b.i - 1]);
+      frontage.position.set(cx, -.65, cz + 9);
+      frontage.scale.set(1.85, 1.25, 1.9);
+      scene.add(frontage);
+      detail(20, .12, 17, '#d6cab3', cx, .63, cz);
+      for (const side of [-1, 1]) {
+        tree(cx + side * 8.7, cz + 7.1);
+        detail(3.8, .18, 4.4, '#c9b291', cx + side * 7.2, .75, cz + 4.5);
+        detail(2.3, .18, .85, '#a47450', cx + side * 7.1, 1.17, cz + 4.3);
+        detail(1.7, .88, 1.2, '#af8058', cx + side * 7.5, 1.2, cz - 3);
+      }
+      // A timber deck and bollards form a transition from the storefront to the road.
+      for (let x = -5; x <= 5; x += 1.25) {
+        detail(1.2, .08, 3.1, '#d2b48d', cx+x, .74, cz + 7.6);
+      }
+      continue;
+    }
+    if(kind===4) {
+      detail(18,.12,18,'#9bb477',cx,.65,cz);
+      detail(2,.13,18,'#ded4b6',cx,.74,cz);
+      detail(18,.13,2,'#ded4b6',cx,.74,cz);
+      for(const x of [-6,6])for(const z of [-6,6])tree(cx+x,cz+z);
+      for(const x of [-5,5]) {
+        detail(3.3,.22,1,'#bd976b',cx+x,1.3,cz+2);
+        detail(3.3,1,.2,'#bd976b',cx+x,1.9,cz+2.5);
+        for(const leg of [-1,1])detail(.2,.7,1,'#47636b',cx+x+leg,1,cz+2);
+      }
+      continue;
+    }
+    const h=kind===2?5.2:3.6+(b.i%2)*.8,color=pal[kind],half=8.4;
+    detail(17,h,17,color,cx,h/2+.6,cz);
+    detail(17.7,.35,17.7,'#f2dfbd',cx,h+.7,cz);
+    detail(15.5,.12,15.5,'#a9adb0',cx,h+.93,cz);
+    for(const side of [-1,1]) {
+      detail(17.6,.5,.35,'#f2dfbd',cx,h+1.05,cz+side*8.6);
+      detail(.35,.5,17.6,'#f2dfbd',cx+side*8.6,h+1.05,cz);
+      for(const offset of [-5,5]) {
+        detail(3.5,2,.15,'#385367',cx+offset,2.1,cz+side*8.55);
+        detail(.16,2,3.5,'#385367',cx+side*8.55,2.1,cz+offset);
+        detail(3.9,.2,.3,'#f2dfbd',cx+offset,3.2,cz+side*8.6);
+        detail(.3,.2,3.9,'#f2dfbd',cx+side*8.6,3.2,cz+offset);
+        detail(.12,2,.2,'#e1cba7',cx+offset,2.1,cz+side*8.65);
+      }
+    }
+    // Two shop fronts face the camera-side streets.
+    if(kind!==2) {
+      for(const side of [-1,1])for(let stripe=0;stripe<8;stripe++) {
+        const awning=box(.86,.22,2.2,stripe%2?'#f4e4c7':color,cx-3.0+stripe*.86,3.3,cz+side*9.1);
+        awning.rotation.x=side*.2;scene.add(awning);
+        detail(.86,.5,.15,stripe%2?'#f4e4c7':color,cx-3+stripe*.86,2.95,cz+side*10.1);
+      }
+      detail(4,2.1,.15,'#243d4f',cx,1.7,cz+8.6);
+      detail(.18,2.1,.2,'#f2dfbd',cx,1.7,cz+8.7);
+      // A cream plaque carries a physical symbol, rather than tiny text.
+      detail(5,1.3,.25,'#f1ddbb',cx,h-.2,cz+8.7);
+      if(kind===1) { // workshop wrench: handle and open jaws
+        detail(2.7,.22,.25,'#416c7b',cx,h-.2,cz+8.9);
+        detail(.35,.75,.25,'#416c7b',cx-1.3,h-.2,cz+8.9);
+        detail(.8,.2,.25,'#416c7b',cx-1.1,h+.2,cz+8.9);
+        detail(.8,.2,.25,'#416c7b',cx-1.1,h-.6,cz+8.9);
+      } else if(kind===0) { // bakery loaves in display
+        for(let k=-1;k<=1;k++)detail(1,.55,.7,'#eeb75a',cx+k*1.4,1.2,cz+9);
+      } else { // warehouse crates, all within the original building block
+        for(let k=0;k<3;k++) {
+          detail(1.7,1.7,1.7,'#b88958',cx+6.5,1.6,cz+7-k*2);
+          detail(1.8,.16,1.8,'#e5bd81',cx+6.5,1.7,cz+7-k*2);
+        }
+      }
+    } else { // bank: columned facade and gold vault-door landmark
+      for(const x of [-6,-3,3,6]) {
+        detail(.8,3.7,.8,'#f1e1c2',cx+x,2.5,cz+8.9);
+        detail(1.2,.25,1.2,'#ddc59d',cx+x,.85,cz+8.9);
+        detail(1.2,.25,1.2,'#f5e6cd',cx+x,4.4,cz+8.9);
+      }
+      const door=new THREE.Mesh(new THREE.CylinderGeometry(1.7,1.7,.35,24),mat('#eab54d'));
+      door.rotation.x=Math.PI/2;door.position.set(cx,2.6,cz+8.9);scene.add(door);
+      const ring=new THREE.Mesh(new THREE.TorusGeometry(1.25,.14,6,24),mat('#fff0b7'));
+      ring.position.set(cx,2.6,cz+9.12);scene.add(ring);
+      detail(2.1,.2,.18,'#fff0b7',cx,2.6,cz+9.2);
+      detail(.2,2.1,.18,'#fff0b7',cx,2.6,cz+9.2);
+      detail(16,.45,1.7,'#f1e1c2',cx,4.7,cz+8.9);
+    }
+    // HVAC, roof ribs and street planting give each block a believable scale.
+    detail(2.8,.8,2.2,'#8c999e',cx-4,h+1.35,cz-3);
+    for(let k=0;k<4;k++)detail(1.8,.05,.16,'#546d79',cx-4,h+1.78,cz-3.5+k*.3);
+    tree(cx-9.7,cz-9.7);tree(cx+9.7,cz+9.7);
+  }
+  for (const [color, items] of detailBatches) {
+    const mesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),mat(color),items.length);
+    const dummy = new THREE.Object3D();
+    items.forEach(([w,h,d,x,y,z],i)=>{dummy.position.set(x,y,z);dummy.scale.set(w,h,d);dummy.updateMatrix();mesh.setMatrixAt(i,dummy.matrix);});
+    mesh.frustumCulled=false; scene.add(mesh);
   }
   scene.add(box(SIZE + 4, 1.2, 1, '#d5d9e2', SIZE / 2, 0.6, -0.5));
   scene.add(box(SIZE + 4, 1.2, 1, '#d5d9e2', SIZE / 2, 0.6, SIZE + 0.5));
   scene.add(box(1, 1.2, SIZE + 4, '#d5d9e2', -0.5, 0.6, SIZE / 2));
   scene.add(box(1, 1.2, SIZE + 4, '#d5d9e2', SIZE + 0.5, 0.6, SIZE / 2));
   BASES.forEach(([x, z], t) => {
-    const pad = new THREE.Mesh(new THREE.CylinderGeometry(BASE_R, BASE_R, 0.3, 36), new THREE.MeshLambertMaterial({ color: TEAM_COLORS[t], emissive: TEAM_COLORS[t], emissiveIntensity: 0.35 }));
-    pad.position.set(x, 0.15, z); scene.add(pad);
+    const pad = new THREE.Mesh(new THREE.CircleGeometry(BASE_R, 48), basicMat(TEAM_COLORS[t], .24));
+    pad.rotation.x = -Math.PI / 2;
+    pad.position.set(x, .045, z); scene.add(pad);
+    const border = new THREE.Mesh(new THREE.RingGeometry(BASE_R-.35,BASE_R+.35,40),basicMat(TEAM_LABEL[t]));
+    border.rotation.x=-Math.PI/2; border.position.set(x,.32,z); scene.add(border);
+    const inset = new THREE.Mesh(new THREE.RingGeometry(BASE_R-1.3,BASE_R-1.05,40),basicMat(TEAM_COLORS[t],.7));
+    inset.rotation.x=-Math.PI/2; inset.position.set(x,.33,z); scene.add(inset);
     const [ox, oz] = BASE_OUT[t], gx = x + ox * 16, gz = z + oz * 16, w = ox ? 10 : 22, d = ox ? 22 : 10;
-    scene.add(box(w, 3, d, TEAM_COLORS[t], gx, 1.5, gz));
-    scene.add(box(w + 0.6, 0.6, d + 0.6, '#ffffff', gx, 3.3, gz));
+    scene.add(box(w,5.2,d,'#d9c8a8',gx,2.6,gz));
+    scene.add(box(w+.8,.5,d+.8,'#f3e3c6',gx,5.4,gz));
+    scene.add(box(w-1,.2,d-1,'#9ba6aa',gx,5.75,gz));
+    const face=ox?w/2:d/2,fx=gx-ox*(face+.12),fz=gz-oz*(face+.12);
+    scene.add(box(ox?.2:8.5,3.8,ox?8.5:.2,'#203746',fx,1.95,fz));
+    for(let k=0;k<10;k++) {
+      const offset=-5.4+k*1.2;
+      const color=k%2?TEAM_COLORS[t]:TEAM_LABEL[t];
+      scene.add(box(ox?2.5:1.2,.55,ox?1.2:2.5,color,fx-ox*.8+(ox?0:offset),4.25,fz-oz*.8+(ox?offset:0)));
+    }
+    for(const side of [-1,1]) {
+      const lx=fx+(ox?0:side*5.7),lz=fz+(ox?side*5.7:0);
+      scene.add(box(ox?.3:.8,1,ox?.8:.3,'#ffe09a',lx,2.8,lz));
+      const post=new THREE.Mesh(new THREE.CylinderGeometry(.45,.55,1.9,10),mat('#f3e3c6'));
+      post.position.set(x+(ox?0:side*6.8),.95,z+(ox?side*6.8:0));scene.add(post);
+    }
   });
 }
 // 金库：金色地台 + 金条堆 + 旋转大金币 + 远处就能看到的光柱
@@ -1575,9 +1792,9 @@ const CAR_MODELS = [
 function buildCarFactory(THREE) {
   const geoCache = {}, matCache = {};
   const M = (key, make) => matCache[key] || (matCache[key] = make());
-  const paint = c => M('p' + c, () => new THREE.MeshPhongMaterial({ color: c, shininess: 90, specular: 0x666666 }));
+  const paint = c => M('p' + c, () => new THREE.MeshPhongMaterial({ color: c, shininess: 55, specular: 0x8c9da8 }));
   const glass = () => M('glass', () => new THREE.MeshPhongMaterial({ color: 0x18222e, shininess: 140, specular: 0xaaccff }));
-  const chrome = () => M('chrome', () => new THREE.MeshPhongMaterial({ color: 0xd8dde6, shininess: 160, specular: 0xffffff }));
+  const chrome = () => M('chrome', () => new THREE.MeshPhongMaterial({ color: 0xe6cf9f, shininess: 65, specular: 0xfff0cd }));
   const steel = () => M('steel', () => new THREE.MeshPhongMaterial({ color: 0x6b7385, shininess: 60, specular: 0x888888 }));
   const dark = () => M('dark', () => new THREE.MeshPhongMaterial({ color: 0x23262d, shininess: 20 }));
   const rubber = () => M('rubber', () => new THREE.MeshLambertMaterial({ color: 0x17181c }));
@@ -1868,16 +2085,104 @@ function buildCarFactory(THREE) {
 
   function build(model, col, team) {
     model = model % SPECS.length;
+    if (model === 0) {
+      const group = createHeroCar();
+      const wheels = group.userData.wheels.map(spin => ({spin, r: .53}));
+      const anchor = group.userData.cargoAnchor.position;
+      const spec = {...SPECS[0], stack: [anchor.x, anchor.y]};
+      const tiers = tierParts(spec, '#ed514d', team, model);
+      tiers.forEach(tier => group.add(tier));
+      const car = {group, wheels, tiers, spec, lift: 0, setLook(level) {
+        tiers.forEach((tier, index) => { tier.visible = index === level; });
+      }};
+      car.setLook(0);
+      return car;
+    }
     const sp = SPECS[model];
     const root = new THREE.Group(), g = new THREE.Group(), wheels = [];
     root.add(g);
-    add(g, prof('body' + model, sp.body, sp.bw, sp.bev, sp.seg), paint(col));
-    add(g, prof('cab' + model, sp.cab, sp.cw, 0.06, sp.cseg), glass());
-    if (sp.roofProf) add(g, prof('roof' + model, sp.roofProf, sp.roofW, 0.08, 12), paint(col));
-    else { const [rx, ry, rl, rw] = sp.roof; add(g, rbox(rl, 0.1, rw, 0.05), paint(col), rx, ry + 0.02, 0); }
-    add(g, rbox(sp.front - sp.rear - 0.3, 0.16, sp.bw - 0.3, 0.06), dark(), (sp.front + sp.rear) / 2, sp.body[0][2] - 0.02, 0);
-    sp.extra(g, col, team);
-    for (const x of sp.wheelX) for (const z of [-sp.wheelZ, sp.wheelZ]) wheel(root, x, sp.wheelY, z, sp.wheelR, sp.wheelW || 0.44, sp.knobby, wheels);
+    // Five bespoke toy-car bodies based on the approved concept sheets.
+    // Same anchors and wheel API as the original: gameplay and cargo stay compatible.
+    col = ['#f56868','#435bc4','#f5aa24','#48c99b','#b58bd4'][model];
+    const cream = paint('#f2e2bd'), trim = dark();
+    const part=(w,h,d,ma,x,y,z,r=.08)=>add(g,rbox(w,h,d,r),ma,x,y,z);
+    const profiles = [
+      [[-2.25,.45],[2.25,.45],[2.4,.8],[1.25,1.0],[-1.9,1.12],[-2.3,.9]],
+      [[-2.4,.45],[2.4,.45],[2.4,.95],[1.1,1.12],[-2.35,1.12]],
+      [[-2.5,.5],[2.5,.5],[2.5,1.05],[1.15,1.23],[-2.5,1.23]],
+      [[-2.15,.65],[2.2,.65],[2.2,1.15],[1.1,1.35],[-2.15,1.35]],
+      [[-1.95,.4],[1.95,.4],[2.1,.8],[1.25,1.15],[-1.45,1.2],[-2.05,.85]]
+    ];
+    const cmds=profiles[model].map(([x,y],i)=>[i?'l':'m',x,y]);cmds.push(['l',...profiles[model][0]]);
+    add(g,prof('conceptBody'+model,cmds,sp.bw,.09,2),paint(col));
+    const cabins=[[-1.5,.8,.85,1.72],[-1.65,.65,1.0,1.88],[-.8,1.05,1.18,2.12],[-1.85,.75,1.3,2.22],[-1.5,.8,1.07,2.0]];
+    const [back,front,bottom,top]=cabins[model];
+    const cp=[['m',back,bottom],['l',front,bottom],['l',front-.4,top],['l',back+.18,top],['l',back,bottom]];
+    add(g,prof('conceptCab'+model,cp,sp.cw,.04,2),glass());
+    part(front-back-.45,.15,sp.cw+.12,model<2?paint(col):cream,(front+back-.25)/2,top+.06,0);
+    for(const z of [-1,1]) {
+      part(.14,top-bottom,.1,paint(col),back+.18,(top+bottom)/2,z*sp.cw/2);
+      part(.16,top-bottom-.1,.1,paint(col),(front+back)/2,(top+bottom)/2,z*sp.cw/2);
+      part(.28,.22,.28,model===1?paint(col):cream,front-.12,bottom+.3,z*(sp.bw/2+.12));
+      part(.27,.09,.07,cream,back+.55,bottom+.03,z*(sp.bw/2+.07),.025);
+      part(3.7,.17,.16,cream,0,.52,z*(sp.bw/2+.03));
+    }
+    // Low-poly arches wrap the enlarged dark tires without changing collision size.
+    const radius=sp.wheelR*1.25;
+    for(const x of sp.wheelX) for(const z of [-sp.wheelZ,sp.wheelZ]) {
+      add(g,prof('conceptArch'+model,[['m',-.9,0],['l',-.9,.45],['l',-.6,.85],['l',.55,.85],['l',.9,.45],['l',.9,0],['l',.68,0],['l',.55,.54],['l',-.5,.54],['l',-.68,0]],.3,.04,1),model===2||model===3?trim:paint(col),x,sp.wheelY-.12,z);
+      wheel(root,x,radius,z,radius,sp.wheelW||.5,model===2||model===3,wheels);
+    }
+    part(.18,.32,sp.bw+.05,cream,sp.front,.56,0);
+    part(.17,.28,sp.bw+.05,cream,sp.rear,.6,0);
+    part(.08,.28,sp.bw*.65,trim,sp.front+.1,.85,0,.025);
+    for(const z of [-.77,.77]) {
+      if(model===4) add(g,cyl(.24,.24,.14,12),cream,sp.front,.99,z,0,0,Math.PI/2);
+      else part(.12,.22,model===0?.5:.34,lightW(),sp.front+.12,.99,z,.025);
+      part(.12,.19,.27,lightR(),sp.rear-.12,.94,z,.025);
+    }
+    if(model===0||model===1) {
+      for(const z of model===0?[0]:[-.28,.28]) {
+        part(1.5,.025,model===0?.35:.22,cream,1.5,model===0?1.06:1.18,z,.01);
+        part(front-back-.45,.025,model===0?.35:.22,cream,(front+back-.25)/2,top+.15,z,.01);
+      }
+      part(.38,.12,sp.bw,paint(col),-2.05,1.55,0);
+      for(const z of [-.7,.7])part(.12,.38,.12,paint(col),-2.05,1.3,z);
+      if(model===1){part(.72,.26,.75,paint(col),1.3,1.3,0);part(.08,.13,.55,trim,1.69,1.32,0);}
+    }
+    if(model===2) {
+      part(1.75,.08,1.9,trim,-1.62,1.26,0);
+      for(const z of [-1.1,1.1])part(1.9,.36,.17,paint(col),-1.62,1.45,z);
+      part(.15,.36,2.2,paint(col),-2.5,1.45,0);
+      for(const z of [-.65,.65])part(.24,.7,.2,trim,2.7,.91,z);
+    }
+    if(model===3) {
+      for(const z of [-.85,.85])part(2.25,.14,.13,trim,-.65,top+.3,z);
+      const spare=add(g,cyl(.58,.58,.32,14),rubber(),-2.4,1.35,0,0,0,Math.PI/2);
+      add(g,cyl(.31,.31,.35,10),cream,-2.42,1.35,0,0,0,Math.PI/2);
+    }
+    if(model===4)for(let i=0;i<3;i++)part(.05,.07,.6,trim,-2.12,1.02+i*.13,0,.02);
+    // Modelled seams, splitters, wheel hubs and warm lamps from the approved board.
+    for(const side of [-1,1]) {
+      part(.08,.5,.09,paint(col),front-.29,top-.19,side*(sp.cw/2+.02),.02);
+      part(1.1,.12,.16,trim,.8,.63,side*(sp.bw/2+.12),.03);
+      if(model<2)part(.55,.36,.08,trim,-.85,.86,side*(sp.bw/2+.1),.04);
+      if(model===2||model===3) {
+        part(.2,.88,.18,cream,sp.front+.21,.94,side*.62,.04);
+        part(.35,.18,.25,lightW(),sp.front+.22,.57,side*.84,.03);
+      }
+    }
+    if(model===0) {
+      part(.38,.15,2.45,trim,2.28,.39,0,.05);
+      for(const z of [-.8,.8])part(.36,.14,.55,trim,2.24,.53,z,.03);
+      part(.15,.18,1.9,trim,-2.38,.44,0);
+    }
+    if(model===1)for(const z of [-.45,.45])part(.08,.18,.21,lightW(),sp.front+.17,.98,z,.025);
+    if(model===4)for(const z of [-.78,.78]) {
+      add(g,cyl(.19,.19,.16,12),lightW(),sp.front+.09,.99,z,0,0,Math.PI/2);
+      add(g,cyl(.09,.09,.14,10),lightW(),sp.front+.08,.67,z*.85,0,0,Math.PI/2);
+    }
+    sp.stack=[model===2?-1.62:(front+back-.25)/2,model===2?1.35:top+.18];
     const tiers = tierParts(sp, col, team, model);
     tiers.forEach((t, i) => { t.visible = i === 0; g.add(t); });
     const ws = sp.wheelScale || [1, 1, 1, 1, 1];
@@ -1885,7 +2190,7 @@ function buildCarFactory(THREE) {
     return { group: root, wheels, tiers, spec: sp, get lift() { return lift; }, setLook(lk) {
       tiers.forEach((t, i) => { t.visible = i === lk; });
       const s = ws[lk]; lift = sp.wheelY * (s - 1); g.position.y = lift;
-      for (const w of wheels) { w.rim.material = lk >= 4 ? gold() : chrome(); w.outer.scale.set(s, s, 1 + (s - 1) * 0.6); w.outer.position.y = w.y * s; w.outer.position.z = Math.sign(w.outer.position.z) * (sp.wheelZ + (s - 1) * 0.35); }
+      for (const w of wheels) { w.rim.material = lk >= 4 ? gold() : cream; w.outer.scale.set(s, s, 1 + (s - 1) * 0.6); w.outer.position.y = w.y * s; w.outer.position.z = Math.sign(w.outer.position.z) * (sp.wheelZ + (s - 1) * 0.35); }
     } };
   }
   return { build, SPECS };
@@ -1898,6 +2203,8 @@ function carMesh(slot, model) {
   const body = new THREE.Group(); g.add(body);
   const car = CARF.build(model, color, team); body.add(car.group);
   const sp = car.spec;
+  const shadow = new THREE.Mesh(new THREE.CircleGeometry(3.4,24),basicMat('#102a36',.24));
+  shadow.rotation.x=-Math.PI/2; shadow.position.y=.07; shadow.scale.set(1.2,.85,1); g.add(shadow);
   const tring = new THREE.Mesh(new THREE.RingGeometry(3.3, 3.9, 32), basicMat(team, 0.85));
   tring.rotation.x = -Math.PI / 2; tring.position.y = 0.12; g.add(tring);
   const up = new THREE.Group(); body.add(up);
@@ -2071,6 +2378,9 @@ function toScreen(x, y, z) {
   tmpV.set(x, y, z).project(cam);
   return [(tmpV.x + 1) / 2 * innerWidth, (1 - tmpV.y) / 2 * innerHeight, tmpV.z];
 }
+const useRoadPreview = true;
+let cameraCar = null;
+let roadLeadX = 0, roadLeadZ = 0;
 const camT = { x: SIZE / 2, z: SIZE / 2 };
 let shakeT = 0, flashT = 0;
 const parts = [];
@@ -2293,12 +2603,26 @@ function render(dt) {
   const me = G.cars[G.mySlot];
   if (me) {
     const fk = 1 - Math.exp(-8 * dt);
-    camT.x += (me.rx + me.vx * 0.3 - camT.x) * fk; camT.z += (me.rz + me.vz * 0.3 - camT.z) * fk;
+    if (cameraCar !== me) {
+      cameraCar = me;
+      camT.x = me.rx; camT.z = me.rz;
+      roadLeadX = roadLeadZ = 0;
+    }
+    camT.x += (me.rx - camT.x) * fk;
+    camT.z += (me.rz - camT.z) * fk;
+    const speed = Math.hypot(me.vx, me.vz);
+    const reach = useRoadPreview ? Math.min(1, Math.max(0, speed - 2) / 16) : 0;
+    const ease = 1 - Math.exp(-3.6 * dt);
+    const sideLimit = Math.min(9, cameraDistance() * cam.aspect * 0.15);
+    roadLeadX += (reach * sideLimit * me.vx / Math.max(1, speed) - roadLeadX) * ease;
+    roadLeadZ += (reach * 12 * me.vz / Math.max(1, speed) - roadLeadZ) * ease;
     const zt = isBoost(me) ? 0.86 : 1; cam.zoom += (zt - cam.zoom) * (1 - Math.exp(-5 * dt)); cam.updateProjectionMatrix();
   }
   shakeT -= dt;
   const shk = shakeT > 0 ? shakeT * 6 : 0, sx = (Math.random() - 0.5) * shk, sz = (Math.random() - 0.5) * shk;
-  cam.position.set(camT.x + sx, CAM_DIST * Math.sin(CAM_PITCH), camT.z + sz + CAM_DIST * Math.cos(CAM_PITCH)); cam.lookAt(camT.x + sx, 0, camT.z + sz);
+  placeCamera(camT.x + sx + roadLeadX, camT.z + sz, roadLeadZ);
+  sun.target.position.set(camT.x, 0, camT.z);
+  sun.position.set(camT.x - 18, 38, camT.z + 26);
   renderer.render(scene, cam);
   for (const c of G.cars) {
     let el = labelEls[c.slot];
@@ -2350,7 +2674,19 @@ const whyName = k => SKILLS[k] ? SKILLS[k].name : '';
 function handleEvent(e) {
   const me = G.mySlot, myC = G.cars[me];
   const near = myC && hyp((e.x ?? myC.rx) - myC.rx, (e.z ?? myC.rz) - myC.rz) < 70;
-  if (e.k === 'dep') { if (near) floatText(tl('depFloat', { n: e.n }), e.x, e.z, COLORS[e.s]); if (e.s === me) { banner(tl('depBanner', { n: e.n }), 2, 2); SFX.dep(); } }
+  if (e.k === 'snatch') {
+    if (near) {
+      floatText('-$' + e.n, e.x2, e.z2, '#ff7777');
+      floatText('+$' + e.n, e.x, e.z, '#ffda54');
+    }
+    if (e.s === me || e.v === me) {
+      const signed = (e.s === me ? '+$' : '-$') + e.n;
+      banner(SKILLS.snatch.name + ' ' + signed, 2, 3);
+      if (e.s === me) SFX.coin();
+    }
+    if (!G.isHost && e.s === me) G.localCd.snatch = cdOf(myC, 'snatch', e.lv);
+  }
+  else if (e.k === 'dep') { if (near) floatText(tl('depFloat', { n: e.n }), e.x, e.z, COLORS[e.s]); if (e.s === me) { banner(tl('depBanner', { n: e.n }), 2, 2); SFX.dep(); } }
   else if (e.k === 'lvl') {
     if (near) addFx({ f: 'levelup', x: e.x, z: e.z });
     if (e.s === me) {
@@ -2531,15 +2867,6 @@ function drawOverlay() {
       ov.beginPath(); ov.moveTo(W / 2 + Math.cos(a) * r0, H / 2 + Math.sin(a) * r0); ov.lineTo(W / 2 + Math.cos(a) * r1, H / 2 + Math.sin(a) * r1); ov.stroke();
     }
   }
-  if (me.skills.hook) {
-    const cd = G.isHost ? (me.cd.hook || 0) : (G.localCd.hook || 0);
-    if (cd <= 0) {
-      const R = lvv(SKILLS.hook.range, me.skills.hook);
-      const [x0, y0] = toScreen(me.rx, 0.5, me.rz), [x1, y1] = toScreen(me.rx + Math.cos(me.rh) * R, 0.5, me.rz + Math.sin(me.rh) * R);
-      ov.setLineDash([6, 8]); ov.strokeStyle = 'rgba(255,224,102,.45)'; ov.lineWidth = 2;
-      ov.beginPath(); ov.moveTo(x0, y0); ov.lineTo(x1, y1); ov.stroke(); ov.setLineDash([]);
-    }
-  }
   for (const c of G.cars) {
     if (!(c.depT > 0)) continue;
     const [sx, sy] = toScreen(c.rx, 0, c.rz);
@@ -2601,6 +2928,11 @@ const SCHEME_KEYS = {
 addEventListener('keydown', e => {
   if (CG.adBusy) { e.preventDefault(); return; }
   if (e.target && e.target.tagName === 'INPUT') return;
+  if (e.target?.id === 'cameraAngle' && ['Space', 'Enter'].includes(e.code)) return;
+  if (e.code === 'KeyV' && G.phase === 'play' && !e.repeat) {
+    cycleCameraAngle();
+    return;
+  }
   if (e.code === 'KeyM' && !e.repeat) MUSIC.toggle();
   if (ARROWS.includes(e.code)) { scheme = 'arrow'; e.preventDefault(); }
   else if (['KeyJ', 'KeyK', 'KeyL', 'KeyU', 'KeyI', 'KeyO'].includes(e.code)) scheme = 'wasd';
@@ -2655,7 +2987,7 @@ function pressSkill(k) {
   if ((G.localCd[k] || 0) > 0) return;
   const lv = me.skills[k];
   if (k === 'nitro') { G.localBoost = lvv(SKILLS.nitro.dur, lv); floatText(tl('nitroF'), me.x, me.z, '#ffb02e'); SFX.nitro(); }
-  G.localCd[k] = cdOf(me, k, lv);
+  if (k !== 'snatch') G.localCd[k] = cdOf(me, k, lv);
   sendTo(G.hostId, { t: 'A', k });
 }
 for (let i = 0; i < 4; i++) $('sk' + i).addEventListener('pointerdown', e => { e.stopPropagation(); pressSlot(i); });
@@ -2676,8 +3008,9 @@ function drawPreview(t) {
       pv.r = new THREE.WebGLRenderer({ canvas: cv, antialias: true, alpha: true });
       pv.r.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
       pv.sc = new THREE.Scene();
-      pv.sc.add(new THREE.HemisphereLight(0xffffff, 0x556070, 1.1));
-      const l = new THREE.DirectionalLight(0xffffff, 1.1); l.position.set(5, 10, 6); pv.sc.add(l);
+      pv.r.toneMapping = THREE.ACESFilmicToneMapping;
+      pv.sc.add(new THREE.HemisphereLight(0xffffff, 0x556070, 1.85));
+      const l = new THREE.DirectionalLight(0xffefd6, 1.25); l.position.set(5, 10, 6); l.intensity = 2.65; pv.sc.add(l);
       pv.cam = new THREE.PerspectiveCamera(28, 2.5, 0.1, 100);
       const fl = new THREE.Mesh(new THREE.CircleGeometry(4.6, 40), new THREE.MeshLambertMaterial({ color: '#4a5266' }));
       fl.rotation.x = -Math.PI / 2; pv.sc.add(fl);
@@ -2810,8 +3143,8 @@ $('bLeave1').onclick = $('bLeave2').onclick = () => { CG.leftRoom(); reloadWith(
 
 function resize() {
   renderer.setSize(innerWidth, innerHeight, false);
-  const h = viewH() / 2, w = h * innerWidth / innerHeight;
-  cam.left = -w; cam.right = w; cam.top = h; cam.bottom = -h; cam.updateProjectionMatrix();
+  cam.aspect = innerWidth / innerHeight;
+  cam.updateProjectionMatrix();
 }
 addEventListener('resize', resize); resize();
 let last = performance.now(), acc = 0, cacc = 0, firstFrame = true;
@@ -2829,8 +3162,10 @@ function frame(now) {
     { const rt = tl('autoNext', { n: Math.ceil(Math.max(0, G.restartT)) }); if ($('resStatus').textContent !== rt) $('resStatus').textContent = rt; }
     if (G.restartT <= 0 && !CG.adBusy) startMatch();
   }
+  const targetPitch = THREE.MathUtils.degToRad(CAMERA_ANGLES[cameraAngleIndex]);
+  cameraPitch = THREE.MathUtils.lerp(cameraPitch, targetPitch, 1 - Math.exp(-12 * dt));
   if (G.cars.length) { render(dt); updateHUD(dt); }
-  else { cam.position.set(SIZE / 2, CAM_DIST * Math.sin(CAM_PITCH), SIZE / 2 + CAM_DIST * Math.cos(CAM_PITCH)); cam.lookAt(SIZE / 2, 0, SIZE / 2); renderer.render(scene, cam); }
+  else { placeCamera(SIZE / 2, SIZE / 2); renderer.render(scene, cam); }
   ovDt = dt; ovK = dt * 60;
   drawOverlay();
   CG.setPlaying(G.phase === 'play' && !CG.adBusy);
@@ -2840,8 +3175,13 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 applyLang();
-requestAnimationFrame(frame);
+const watchSnatch = new URLSearchParams(location.search).get('preview') === 'snatch';
+if (watchSnatch) {
+  const { previewSnatch } = await import('./art/snatch-preview.js');
+  previewSnatch({ THREE, scene, renderer, cam, carMesh, placeCamera, box, road: [rc(2), rc(1)], sun });
+} else requestAnimationFrame(frame);
 (async () => {
+  if (watchSnatch) return;
   await CG.init();
   if (CG.on) {
     // 在平台上：玩家自己选过 > 平台 locale > 英语

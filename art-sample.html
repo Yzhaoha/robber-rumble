@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>劫匪大乱斗 · 街区美术样板</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#c7dedc;color:#f6eedc;font-family:system-ui,-apple-system,"PingFang SC",sans-serif;overflow:hidden}canvas{display:block;touch-action:none;width:100vw;height:100dvh}header{position:fixed;left:24px;top:22px;pointer-events:none;text-shadow:0 2px 12px #172f37a0}h1{font-size:24px;margin:0 0 5px}header p{margin:0;font-size:14px}nav{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);display:flex;gap:6px;background:#173443ef;padding:8px;border:1px solid #f1e0b643;border-radius:18px;box-shadow:0 8px 28px #17344344;max-width:96vw}button{border:0;border-radius:12px;background:#2e5060;color:#f6eedc;padding:12px 18px;font:700 14px system-ui;white-space:nowrap;cursor:pointer}button[aria-pressed=true]{background:#f3d89b;color:#203a49}button:focus-visible{outline:3px solid white;outline-offset:2px}#hint{position:fixed;right:22px;top:22px;font-size:13px;background:#173443c9;padding:10px 14px;border-radius:12px}#error{position:fixed;inset:0;display:none;place-content:center;padding:32px;background:#173443;color:#fff;text-align:center}#error p{max-width:450px;line-height:1.8}#mark{position:fixed;left:24px;bottom:22px;font-size:12px;color:#24414f;background:#f5ead2db;border-radius:8px;padding:6px 9px} @media(max-width:650px){header{left:14px;top:14px}h1{font-size:19px}header p{font-size:12px}#hint{top:76px;right:14px;font-size:12px}nav{bottom:15px;gap:4px;padding:6px}button{padding:11px 10px;font-size:12px}#mark{left:14px;bottom:82px}}
+</style></head>
+<body>
+<canvas id="view" aria-label="可旋转查看的跑车与银行街区"></canvas>
+<header><h1>劫匪大乱斗 · 街区样板</h1><p>闪电跑车 / 面包店 / 银行 / 修理店</p></header>
+<div id="hint">拖动画面换角度 · 滚轮缩放</div>
+<div id="mark">实机样板 03 · 待确认</div>
+<nav aria-label="查看样板"><button id="hero" aria-pressed="true">看车</button><button id="street" aria-pressed="false">看街区</button><button id="play" aria-pressed="false">试车</button><button id="cargo" aria-pressed="false">车顶堆钱</button></nav>
+<div id="error"><h2>当前浏览器无法显示 3D 画面</h2><p>请用支持 WebGL 的浏览器打开此页。此处不会用设计图代替实机画面。</p><p id="details"></p></div>
+<script type="module">
+import * as THREE from './three.module.min.js';
+import {createStreetSample} from './art/street-scene.js';
+try {
+  const renderer=new THREE.WebGLRenderer({canvas:document.querySelector('#view'),antialias:true,alpha:false});
+  renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+  renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.0;
+  const {scene,car,coins,cargo}=createStreetSample();
+  const camera=new THREE.PerspectiveCamera(34,1,.1,160);
+  let mode='hero',playing=false,yaw=.75,pitch=.5,distance=11,desiredDistance=11;
+  const focus=new THREE.Vector3(.7,1.1,1.1),desiredFocus=focus.clone(),keys=new Set();
+  const ids=['hero','street','play','cargo'];
+  function state(){for(const id of ids)document.getElementById(id).setAttribute('aria-pressed',String(id==='hero'?mode==='hero':id==='street'?mode==='street':id==='play'?playing:cargo.visible));}
+  document.getElementById('hero').onclick=()=>{mode='hero';playing=false;car.position.set(.7,.36,1.1);car.rotation.y=0;desiredFocus.set(.7,1.1,1.1);desiredDistance=11;yaw=.75;pitch=.5;state();};
+  document.getElementById('street').onclick=()=>{mode='street';playing=false;desiredFocus.set(0,1.8,-4.5);desiredDistance=41;yaw=.35;pitch=.69;state();};
+  document.getElementById('play').onclick=()=>{playing=!playing;mode='hero';desiredDistance=17;document.getElementById('hint').textContent=playing?'方向键 / WASD 试车 · 手机拖动看角度':'拖动画面换角度 · 滚轮缩放';state();};
+  document.getElementById('cargo').onclick=()=>{cargo.visible=!cargo.visible;state();};
+  addEventListener('keydown',e=>{if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','w','a','s','d'].includes(e.key)){keys.add(e.key);e.preventDefault();}});
+  addEventListener('keyup',e=>keys.delete(e.key));addEventListener('blur',()=>keys.clear());
+  const canvas=renderer.domElement;let drag=null;
+  canvas.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY};canvas.setPointerCapture(e.pointerId);});
+  canvas.addEventListener('pointermove',e=>{if(!drag)return;yaw-=(e.clientX-drag.x)*.008;pitch=THREE.MathUtils.clamp(pitch+(e.clientY-drag.y)*.004,.18,1.12);drag={x:e.clientX,y:e.clientY};});
+  canvas.addEventListener('pointerup',()=>drag=null);canvas.addEventListener('pointercancel',()=>drag=null);
+  canvas.addEventListener('wheel',e=>{desiredDistance=THREE.MathUtils.clamp(desiredDistance+e.deltaY*.015,6,55);e.preventDefault();},{passive:false});
+  function resize(){renderer.setSize(innerWidth,innerHeight);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();}
+  addEventListener('resize',resize);resize();let last=performance.now(),speed=0;
+  function frame(now){const dt=Math.min((now-last)/1000,.04);last=now;
+    if(playing){
+      const forward=(keys.has('w')||keys.has('ArrowUp')?1:0)-(keys.has('s')||keys.has('ArrowDown')?1:0);
+      const turn=(keys.has('a')||keys.has('ArrowLeft')?1:0)-(keys.has('d')||keys.has('ArrowRight')?1:0);
+      speed=THREE.MathUtils.lerp(speed,forward*5,Math.min(dt*4,1));car.rotation.y+=turn*dt*1.8;
+      car.position.x=THREE.MathUtils.clamp(car.position.x+Math.cos(car.rotation.y)*speed*dt,-12.5,12.5);
+      car.position.z=THREE.MathUtils.clamp(car.position.z-Math.sin(car.rotation.y)*speed*dt,-1.0,7);
+      for(const wheel of car.userData.wheels)wheel.rotation.z-=speed*dt/.53;
+      desiredFocus.set(car.position.x,1.1,car.position.z);
+    }
+    const smoothing=1-Math.exp(-dt*7);focus.lerp(desiredFocus,smoothing);distance=THREE.MathUtils.lerp(distance,desiredDistance,smoothing);
+    const adjustedDistance=distance*(innerWidth<innerHeight?1.4:1);
+    camera.position.set(focus.x+Math.sin(yaw)*Math.cos(pitch)*adjustedDistance,focus.y+Math.sin(pitch)*adjustedDistance,focus.z+Math.cos(yaw)*Math.cos(pitch)*adjustedDistance);camera.lookAt(focus);
+    for(let i=0;i<coins.length;i++){coins[i].rotation.y=now*.0008;coins[i].position.y=.9+Math.sin(now*.002+i)*.08;}
+    renderer.render(scene,camera);requestAnimationFrame(frame);
+  }requestAnimationFrame(frame);
+} catch(e) {document.querySelector('#error').style.display='grid';document.querySelector('#details').textContent=e.message;console.error(e);}
+</script>
+</body></html>
