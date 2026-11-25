@@ -1,4 +1,4 @@
-export function previewSnatch({ THREE, scene, renderer, cam, carMesh, placeCamera, box, road, sun }) {
+export function previewSnatch({ THREE, scene, renderer, cam, carMesh, placeCamera, box, road, sun, drawGuide }) {
   const [x, z] = road;
   const cars = [carMesh(0, 0), carMesh(3, 2)];
   for (const car of cars) {
@@ -26,7 +26,7 @@ export function previewSnatch({ THREE, scene, renderer, cam, carMesh, placeCamer
   const from = new THREE.Vector3(), to = new THREE.Vector3();
   function animate(now) {
     const t = ((now - start) / 1000) % 4.5;
-    const offset = 5 * Math.sin((t - 1.65) * Math.PI * 2 / 4.5);
+    const offset = 10 * Math.sin((t - 1.65) * Math.PI * 2 / 4.5);
     cars[0].position.set(x + offset, 0, z + 2.9);
     cars[1].position.set(x - offset, 0, z - 2.9);
     cars[1].rotation.y = Math.PI;
@@ -51,6 +51,9 @@ export function previewSnatch({ THREE, scene, renderer, cam, carMesh, placeCamer
     sun.position.set(x-18, 38, z+26);
     placeCamera(cars[0].position.x, cars[0].position.z);
     renderer.render(scene, cam);
+    const inRange = cars[0].position.distanceTo(cars[1].position) <= 14;
+    drawGuide(cars[0].position.x, cars[0].position.z,
+      inRange && elapsed < 0 ? { rx: cars[1].position.x, rz: cars[1].position.z } : null);
     requestAnimationFrame(animate);
   }
   requestAnimationFrame(animate);

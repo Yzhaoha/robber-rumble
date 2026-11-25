@@ -627,11 +627,11 @@ function shockWave(c, R, take, stun, lv, wave) {
   }
   event({ k: 'fx', f: 'shock', s: c.slot, x: c.x, z: c.z, r: R, lv, w: wave });
 }
-function snatchTarget(c, radius) {
+function snatchTarget(c, radius, remoteView = false) {
   let best = null, bestDist = Infinity;
   for (const o of enemies(c)) {
-    if (!canLose(o)) continue;
-    const d = hyp(o.x - c.x, o.z - c.z);
+    if (!canLose(o) || (remoteView && o.immF)) continue;
+    const d = remoteView ? hyp(o.rx - c.rx, o.rz - c.rz) : hyp(o.x - c.x, o.z - c.z);
     if (d <= radius && (!best || o.bags > best.bags || (o.bags === best.bags && d < bestDist))) {
       best = o; bestDist = d;
     }
@@ -2854,12 +2854,49 @@ function updateHUD(dt) {
   if (bannerT > 0) { bannerT -= dt; if (bannerT <= 0) $('banner').style.opacity = 0; }
 }
 let ovDt = 1 / 60, ovK = 1;
+function drawSnatchRange(x, z, radius, target) {
+  ov.save();
+  ov.beginPath();
+  for (let i = 0; i <= 72; i++) {
+    const angle = i * Math.PI / 36;
+    const [px, py] = toScreen(x + radius * Math.cos(angle), .15, z + radius * Math.sin(angle));
+    if (i === 0) ov.moveTo(px, py); else ov.lineTo(px, py);
+  }
+  ov.closePath();
+  ov.strokeStyle = target ? '#ffe082' : 'rgba(255,221,149,.78)';
+  ov.lineWidth = target ? 2.5 : 1.5;
+  if (!target) ov.setLineDash([5, 6]);
+  ov.stroke();
+  ov.setLineDash([]);
+  const [px, py] = toScreen(x, .2, z + radius);
+  ov.font = 'bold 14px system-ui';
+  ov.textAlign = 'center';
+  ov.strokeStyle = '#172631';
+  ov.lineWidth = 4;
+  const label = radius + (LANG === 'zh' ? ' 米' : ' m');
+  ov.strokeText(label, px, py - 4);
+  ov.fillStyle = '#ffe39a';
+  ov.fillText(label, px, py - 4);
+  if (target) {
+    const [tx, ty] = toScreen(target.rx, .35, target.rz);
+    ov.beginPath();
+    ov.ellipse(tx, ty, 24, 15, 0, 0, Math.PI * 2);
+    ov.strokeStyle = '#ffbd31'; ov.lineWidth = 3; ov.stroke();
+    ov.fillText('▼', tx, ty - 19);
+  }
+  ov.restore();
+}
 function drawOverlay() {
   const W = innerWidth, H = innerHeight, dpr = Math.min(2, window.devicePixelRatio || 1);
   if (ovc.width !== Math.floor(W * dpr)) { ovc.width = Math.floor(W * dpr); ovc.height = Math.floor(H * dpr); }
   ov.setTransform(dpr, 0, 0, dpr, 0, 0); ov.clearRect(0, 0, W, H);
   if (G.phase !== 'play') return;
   const me = G.cars[G.mySlot]; if (!me) return;
+  if (me.skills.snatch && !(me.stunT > 0 || (!G.isHost && me.stunF)) &&
+      !((G.isHost ? me.cd : G.localCd).snatch > 0)) {
+    const radius = lvv(SKILLS.snatch.range, me.skills.snatch);
+    drawSnatchRange(me.rx, me.rz, radius, snatchTarget(me, radius, !G.isHost));
+  }
   if (isBoost(me)) {
     ov.strokeStyle = 'rgba(255,255,255,.55)'; ov.lineWidth = 2;
     for (let i = 0; i < 26; i++) {
@@ -3178,7 +3215,10 @@ applyLang();
 const watchSnatch = new URLSearchParams(location.search).get('preview') === 'snatch';
 if (watchSnatch) {
   const { previewSnatch } = await import('./art/snatch-preview.js');
-  previewSnatch({ THREE, scene, renderer, cam, carMesh, placeCamera, box, road: [rc(2), rc(1)], sun });
+  previewSnatch({ THREE, scene, renderer, cam, carMesh, placeCamera, box, road: [rc(2), rc(1)], sun, drawGuide(x, z, target) {
+    drawOverlay();
+    drawSnatchRange(x, z, SKILLS.snatch.range[0], target);
+  } });
 } else requestAnimationFrame(frame);
 (async () => {
   if (watchSnatch) return;
